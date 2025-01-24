@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
@@ -829,4 +830,28 @@ func getSidecars(sidecars *[]redisv1beta2.Sidecar) []redisv1beta2.Sidecar {
 		return []redisv1beta2.Sidecar{}
 	}
 	return *sidecars
+}
+
+func (s *StatefulSetService) TriggerRollingRestart(ctx context.Context, namespace, name string) error {
+	statefulSet, err := s.kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to get StatefulSet", "StatefulSet", name, "namespace", namespace)
+		return err
+	}
+
+	// Add or update the annotation to trigger a rolling restart
+	if statefulSet.Spec.Template.Annotations == nil {
+		statefulSet.Spec.Template.Annotations = make(map[string]string)
+	}
+	statefulSet.Spec.Template.Annotations["redis.opstreelabs.in/restartedAt"] = time.Now().Format(time.RFC3339)
+
+	// Update the StatefulSet
+	_, err = s.kubeClient.AppsV1().StatefulSets(namespace).Update(ctx, statefulSet, metav1.UpdateOptions{})
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to update StatefulSet for rolling restart", "StatefulSet", name, "namespace", namespace)
+		return err
+	}
+
+	log.FromContext(ctx).Info("Triggered rolling restart of StatefulSet", "StatefulSet", name, "namespace", namespace)
+	return nil
 }

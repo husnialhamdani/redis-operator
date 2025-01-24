@@ -346,9 +346,16 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 			break
 		}
 	}
+
+	// If no real master pod is found, attempt recovery
 	if realMasterPod == "" {
-		log.FromContext(ctx).Error(errors.New("no real master pod found"), "")
-		return ""
+		log.FromContext(ctx).Error(errors.New("no real master pod found"), "Attempting recovery")
+		statefulSetService := NewStatefulSetService(client)
+		err := recoverFromNoMaster(ctx, statefulSetService, replicationNamespace, replicationName)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Failed to recover from no real master pod")
+		}
+
 	}
 
 	realMasterInfo := RedisDetails{
@@ -356,4 +363,16 @@ func getRedisReplicationMasterIP(ctx context.Context, client kubernetes.Interfac
 		Namespace: replicationNamespace,
 	}
 	return getRedisServerIP(ctx, client, realMasterInfo)
+}
+
+func recoverFromNoMaster(ctx context.Context, statefulsetService *StatefulSetService, namespace, statefulSetName string) error {
+	// Trigger rolling restart of the StatefulSet
+	err := statefulsetService.TriggerRollingRestart(ctx, namespace, statefulSetName)
+	if err != nil {
+		log.FromContext(ctx).Error(err, "Failed to trigger rolling restart for StatefulSet", "StatefulSet", statefulSetName, "namespace", namespace)
+		return err
+	}
+
+	log.FromContext(ctx).Info("Rolling restart triggered successfully for StatefulSet", "StatefulSet", statefulSetName, "namespace", namespace)
+	return nil
 }
