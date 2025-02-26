@@ -2,7 +2,7 @@
 apiVersion: v1
 data:
   # yamllint disable-line rule:line-length
-  replicas-username: cmVwbGljYS11c2Vy # don't change
+  replicas-username: cmVwbGljYXMtdXNlcg== # don't change
   replicas-password: UmVwbGljYXMxMjM=
 kind: Secret
 metadata:
