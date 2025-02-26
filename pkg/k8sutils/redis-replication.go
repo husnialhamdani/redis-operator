@@ -2,9 +2,9 @@ package k8sutils
 
 import (
 	"context"
-
 	redisv1beta2 "github.com/OT-CONTAINER-KIT/redis-operator/api/v1beta2"
 	"github.com/OT-CONTAINER-KIT/redis-operator/pkg/util"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
@@ -180,6 +180,34 @@ func generateRedisReplicationContainerParams(cr *redisv1beta2.RedisReplication) 
 	}
 	if cr.Spec.ACL != nil {
 		containerProp.ACLConfig = cr.Spec.ACL
+		containerProp.EnvVars = &[]corev1.EnvVar{
+			{
+				Name:  "REDIS_ACL_ENABLED",
+				Value: "true",
+			},
+			{
+				Name: "REPLICAS_USERNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: cr.Spec.ACL.SystemSecret.SecretName,
+						},
+						Key: "replicas-username",
+					},
+				},
+			},
+			{
+				Name: "REPLICAS_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: cr.Spec.ACL.SystemSecret.SecretName,
+						},
+						Key: "replicas-password",
+					},
+				},
+			},
+		}
 	}
 	return containerProp
 }
@@ -210,6 +238,68 @@ func generateRedisReplicationInitContainerParams(cr *redisv1beta2.RedisReplicati
 		}
 		if cr.Spec.Storage != nil {
 			initcontainerProp.PersistenceEnabled = &trueProperty
+		}
+	}
+
+	if cr.Spec.ACL != nil {
+
+		initcontainerProp = initContainerParameters{
+			Enabled: &trueProperty,
+			Image:   "alpine",
+			Command: []string{
+				"/bin/sh",
+				"-c",
+				`# Define operator-managed Sentinel/Replica rules
+					OPERATOR_ACL_RULES=$(cat <<-EOF
+					user replicas-user on >$REPLICAS_CREDENTIALS ~* &* +@all
+					user default OFF NOPASS ~* &* -@all
+					EOF
+					)
+
+					# Merge operator rules with user-provided rules
+					echo "$OPERATOR_ACL_RULES" > /merged-acl/user.acl
+					if [ -f "/user-acl-secrets/user.acl" ]; then
+					  echo "Merging system's acl with user's acl"
+					  cat "/user-acl-secrets/user.acl" >> /merged-acl/user.acl
+					else
+					  echo "No user ACL file found or it's empty."
+					fi`,
+			},
+			AdditionalEnvVariable: &[]corev1.EnvVar{
+				{
+					Name: "REPLICAS_USERNAME",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: cr.Spec.ACL.SystemSecret.SecretName,
+							},
+							Key: "replicas-username",
+						},
+					},
+				},
+				{
+					Name: "REPLICAS_CREDENTIALS",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: cr.Spec.ACL.SystemSecret.SecretName,
+							},
+							Key: "replicas-password",
+						},
+					},
+				},
+			},
+			AdditionalMountPath: []corev1.VolumeMount{
+				{
+					Name:      "acl-secret",
+					MountPath: "/user-acl-secrets",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "merged-acl",
+					MountPath: "/merged-acl",
+				},
+			},
 		}
 	}
 	return initcontainerProp

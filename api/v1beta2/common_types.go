@@ -68,7 +68,8 @@ type TLSConfig struct {
 }
 
 type ACLConfig struct {
-	Secret *corev1.SecretVolumeSource `json:"secret,omitempty"`
+	Secret       *corev1.SecretVolumeSource `json:"secret,omitempty"`
+	SystemSecret *corev1.SecretVolumeSource `json:"systemSecret,omitempty"`
 }
 
 // Sidecar for each Redis pods

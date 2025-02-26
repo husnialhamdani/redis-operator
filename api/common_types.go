@@ -180,6 +180,7 @@ type RedisPodDisruptionBudget struct {
 type RedisSentinelConfig struct {
 	AdditionalSentinelConfig *string              `json:"additionalSentinelConfig,omitempty"`
 	RedisReplicationName     string               `json:"redisReplicationName"`
+	RedisReplicationUsername *corev1.EnvVarSource `json:"redisReplicationUsername"`
 	RedisReplicationPassword *corev1.EnvVarSource `json:"redisReplicationPassword,omitempty"`
 	// +kubebuilder:default:=myMaster
 	MasterGroupName string `json:"masterGroupName,omitempty"`

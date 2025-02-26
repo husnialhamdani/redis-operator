@@ -554,14 +554,26 @@ func configureRedisReplicationClient(ctx context.Context, client kubernetes.Inte
 	}
 	var err error
 	var pass string
+	var username string
+
 	if cr.Spec.KubernetesConfig.ExistingPasswordSecret != nil {
 		pass, err = getRedisPassword(ctx, client, cr.Namespace, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Name, *cr.Spec.KubernetesConfig.ExistingPasswordSecret.Key)
 		if err != nil {
 			log.FromContext(ctx).Error(err, "Error in getting redis password")
 		}
 	}
+
+	if cr.Spec.ACL != nil {
+		username = "replicas-user"
+		pass, err = getRedisPassword(ctx, client, cr.Namespace, cr.Spec.ACL.SystemSecret.SecretName, "replicas-password")
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Error in getting system ACL credentials")
+		}
+	}
+
 	opts := &redis.Options{
 		Addr:     getRedisServerAddress(ctx, client, redisInfo, 6379),
+		Username: username,
 		Password: pass,
 		DB:       0,
 	}

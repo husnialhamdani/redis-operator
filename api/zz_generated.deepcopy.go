@@ -367,6 +367,11 @@ func (in *RedisSentinelConfig) DeepCopyInto(out *RedisSentinelConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.RedisReplicationUsername != nil {
+		in, out := &in.RedisReplicationUsername, &out.RedisReplicationUsername
+		*out = new(v1.EnvVarSource)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.RedisReplicationPassword != nil {
 		in, out := &in.RedisReplicationPassword, &out.RedisReplicationPassword
 		*out = new(v1.EnvVarSource)

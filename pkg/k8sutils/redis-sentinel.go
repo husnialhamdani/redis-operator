@@ -289,6 +289,13 @@ func getSentinelEnvVariable(ctx context.Context, client kubernetes.Interface, cr
 		},
 	}
 
+	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.RedisReplicationUsername != nil {
+		*envVar = append(*envVar, corev1.EnvVar{
+			Name:      "MASTER_USERNAME",
+			ValueFrom: cr.Spec.RedisSentinelConfig.RedisReplicationUsername,
+		})
+	}
+
 	if cr.Spec.RedisSentinelConfig != nil && cr.Spec.RedisSentinelConfig.RedisReplicationPassword != nil {
 		*envVar = append(*envVar, corev1.EnvVar{
 			Name:      "MASTER_PASSWORD",

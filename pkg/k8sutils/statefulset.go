@@ -361,6 +361,12 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 				VolumeSource: corev1.VolumeSource{
 					Secret: containerParams.ACLConfig.Secret,
 				},
+			},
+			corev1.Volume{
+				Name: "merged-acl",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
 			})
 	}
 
@@ -648,7 +654,7 @@ func getVolumeMount(name string, persistenceEnabled *bool, clusterMode bool, nod
 
 	if aclConfig != nil {
 		VolumeMounts = append(VolumeMounts, corev1.VolumeMount{
-			Name:      "acl-secret",
+			Name:      "merged-acl",
 			MountPath: "/etc/redis/user.acl",
 			SubPath:   "user.acl",
 		})
